@@ -1,0 +1,41 @@
+---
+title: "R for Biologists"
+author: "Saville"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+# Intro to R for Biologists
+
+This is a basic intro to R and the Tidyverse for biologists. The link for this brief course is here: [Intro R for Biologists](https://melbournebioinformatics.github.io/r-intro-biologists/intro_r_biologists.html)
+
+It uses the following RNA seq data
+
+## **RNA-seq dataset**
+
+Here we will create some plots using RNA-seq data from the paper by [Fu et al. 2015](https://www.ncbi.nlm.nih.gov/pubmed/25730472), GEO code GSE60450. This study examined expression in basal and luminal cells from mice at different stages (virgin, pregnant and lactating). There are 2 samples per group and 6 groups, 12 samples in total.
+
+This is the same data used in the Galaxy RNA seq tutorial (also written by Maria Doyle - and others)
+
+[galaxy RNA seq tutorial](https://training.galaxyproject.org/training-material/topics/transcriptomics/tutorials/rna-seq-reads-to-counts/tutorial.html)
