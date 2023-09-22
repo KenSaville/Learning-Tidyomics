@@ -219,7 +219,7 @@ allinfo %>% arrange(gene_id)
 
 **`ggplot2`** is a plotting package that makes it simple to create complex plots. One really great benefit of ggplot2 versus the older base R plotting is that we only need to make minimal changes if the underlying data change or if we decide to change our plot type, for example, from a box plot to a violin plot. This helps in creating publication quality plots with minimal amounts of adjustments and tweaking.
 
-**`ggplot2`** likes data in the \'long\' format, i.e., a column for every variable, and a row for every observation, similar to what we created with `gather()`. Well-structured data will save you lots of time when making figures with **`ggplot2`**.
+**`ggplot2`** likes data in the 'long' format, i.e., a column for every variable, and a row for every observation, similar to what we created with `gather()`. Well-structured data will save you lots of time when making figures with **`ggplot2`**.
 
 As we shall see, ggplot graphics are built step by step by adding new elements using the `+`. Adding layers in this fashion allows for extensive flexibility and customization of plots.
 
@@ -231,4 +231,346 @@ To build a ggplot, we use the following basic template that can be used for diff
 
 3.  The type of plot (the geom\_)
 
-There are different geoms we can use to create different types of plot e.g. `geom_line()` `geom_point()`, `geom_boxplot()`. To see the geoms available take a look at the ggplot2 help or the handy [ggplot2 cheatsheet](https://github.com/rstudio/cheatsheets/raw/master/data-visualization-2.1.pdf). Or if you type \"geom\" in RStudio, RStudio will show you the different types of geoms you can use.
+There are different geoms we can use to create different types of plot e.g. `geom_line()` `geom_point()`, `geom_boxplot()`. To see the geoms available take a look at the ggplot2 help or the handy [ggplot2 cheatsheet](https://github.com/rstudio/cheatsheets/raw/master/data-visualization-2.1.pdf). Or if you type "geom" in RStudio, RStudio will show you the different types of geoms you can use.
+
+## **Creating a boxplot**
+
+We can make boxplots to visualise the distribution of the counts for each sample. This helps us to compare the samples and check if any look unusual.
+
+*Note: with ggplot the "+" must go at the end of the line, it can't go at the beginning of the next line.*
+
+```{r}
+ggplot(data = allinfo, mapping = aes(x = Sample, y = Count)) + 
+  geom_boxplot()
+```
+
+We have generated our first plot!
+
+But it looks a bit weird. It's because we have some genes with extremely high counts. To make it easier to visualise the distributions we usually plot the logarithm of RNA-seq counts. We'll plot the Sample on the X axis and log2 of Counts on the y axis. We can log the Counts within the `aes()`. The sample labels are also overlapping each other, we will show how to fix this later.
+
+```{r}
+ggplot(data = allinfo, mapping = aes(x = Sample, y = log2(Count))) + 
+  geom_boxplot()
+
+```
+
+We get a warning here about rows containing non-finite values being removed. This is because some of the genes have a count of zero in the samples and a log of zero is undefined. We can add a small number to every count to avoid the zeros being dropped.
+
+```{r}
+ggplot(data = allinfo, mapping = aes(x = Sample, y = log2(Count + 1))) + 
+  geom_boxplot()
+```
+
+The box plots show that the distributions of the samples are not identical but they are not very different.
+
+Box plots are useful summaries, but hide the shape of the distribution. For example, if the distribution is bimodal, we would not see it in a boxplot. An alternative to the boxplot is the **violin plot**, where the shape (of the density of points) is drawn. See [here](https://blog.bioturing.com/2018/05/16/5-reasons-you-should-use-a-violin-graph/) for an example of how differences in distribution may be hidden in box plots but revealed with violin plots.
+
+#### **Exercise**
+
+You can easily make different types of plots with ggplot by using different geoms. Using the same data (same x and y values), try editing the code above to make a violin plot (Hint: there's a `geom_violin`)
+
+```{r}
+ggplot(data = allinfo, mapping = aes(x = Sample, y = log2(Count + 1))) + 
+  geom_violin()
+```
+
+# **Coloring by categories**
+
+What if we would like to add some colour to the plot, for example, a different colour for each sample.
+
+If we look at the `geom_boxplot` help we can see under the heading called "Aesthetics" that there's an option for colour. Let's try adding that to our plot. We'll specify we want to map the Sample column to `colour =`. As we are mapping colour to a column in our data we need to put this inside the `aes()`.
+
+```{r}
+ggplot(data = allinfo, mapping = aes(x = Sample, y = log2(Count + 1), color=Sample)) + 
+  geom_boxplot()
+```
+
+Coloring the edges wasn't quite what we had in mind. Look at the help for `geom_boxplot` to see what other aesthetic we could use. Let's try `fill =` instead.
+
+```{r}
+ggplot(data = allinfo, mapping = aes(x = Sample, y = log2(Count + 1), fill = Sample)) +    geom_boxplot()
+```
+
+let's switch the x an y coordinates so we can read the labels.
+
+```{r}
+ggplot(data = allinfo, mapping = aes(x = Sample, y = log2(Count + 1), color=Sample)) + 
+  geom_boxplot() +
+  coord_flip()
+```
+
+# **Creating subplots for each gene**
+
+With ggplot we can easily make subplots using *faceting*. For example we can make [stripcharts](http://www.sthda.com/english/wiki/ggplot2-stripchart-jitter-quick-start-guide-r-software-and-data-visualization). These are a type of scatterplot and are useful when there are a small number of samples (when there are not too many points to visualise). Here we will make stripcharts plotting expression by the groups (basal virgin, basal pregnant, basal lactating, luminal virgin, luminal pregnant, luminal lactating) for each gene.
+
+## **Make shorter category names**
+
+First we'll use `mutate()` to add a column with shorter group names to use in the plot, as the group names in the characteristics column are quite long.
+
+```{r}
+allinfo <- mutate(allinfo, Group = case_when(
+        str_detect(characteristics, "basal.*virgin") ~  "bvirg",
+        str_detect(characteristics, "basal.*preg")  ~  "bpreg",
+        str_detect(characteristics, "basal.*lact")  ~  "blact",
+        str_detect(characteristics, "luminal.*virgin")  ~  "lvirg",
+        str_detect(characteristics, "luminal.*preg")  ~  "lpreg",
+        str_detect(characteristics, "luminal.*lact")  ~  "llact"
+       ))
+```
+
+```{r}
+tail(allinfo)
+```
+
+## **Filter for genes of interest**
+
+We can make plots for a set of given genes.
+
+```{r}
+mygenes <- c("Csn1s2a", "Csn1s1", "Csn2", "Glycam1", "COX1", "Trf", "Wap", "Eef1a1")
+```
+
+We filter our data for just these genes of interest. We use `%in%` to check if a value is in a set of values.
+
+```{r}
+mygenes_counts <- allinfo %>% filter(gene_symbol %in% mygenes)
+```
+
+```{r}
+mygenes_counts
+```
+
+## **Create plots for each gene**
+
+We can make boxplots for just these genes. We *facet* on the `gene_symbol` column using `facet_wrap()`. We add the tilde symbol `~` in front of the column we want to facet on.
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), fill = Group)) +
+  geom_boxplot() +
+  facet_wrap(~ gene_symbol)
+```
+
+The boxplots don't look good as we only have two values per group. We could just plot the individual points instead. We could use `geom_point()` to make a scatterplot.
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), fill = Group)) +
+  geom_point() +
+  facet_wrap(~ gene_symbol)
+```
+
+The points are overlapping so we will make a jitter plot using `geom_jitter()`. A **jitter plot** is similar to a scatter plot. It adds a small amount of random variation to the location of each point so they don't overlap. If is also quite common to combine jitter plots with other types of plot, for example, [jitter with boxplot](https://simplystatistics.org/2019/02/21/dynamite-plots-must-die/).
+
+```{r}
+ggplot(data = mygenes_counts, mapping = aes(x = Group, y = log2(Count + 1))) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol)
+```
+
+We can colour the groups similar to before using `colour =` Group. Color works here instead of fill because these are solid points and don't need to be filled.
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), color = Group)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol)
+```
+
+# **Customising the plot**
+
+## **Specifying colors**
+
+We might want to change the colors. To see what color names are available you can type `colors()`. There is also an [R colours cheatsheet](https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/colorPaletteCheatsheet.pdf) that shows what the colors look like.
+
+```{r}
+mycolors <- c("turquoise", "plum", "tomato", "violet", "steelblue", "chocolate")
+```
+
+Then we then add these colours to the plot using a + and scale_color_manual(values = mycolors).
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), colour = Group)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  scale_color_manual(values = mycolors)
+```
+
+There are built-in colour palettes that can be handy to use, where the sets of colours are predefined. scale_colour_brewer() is a popular one (there is also scale_fill_brewer()). You can take a look at the help for scale_colour_brewer() to see what palettes are available. The [R colours cheatsheet](https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/colorPaletteCheatsheet.pdf) also shows what the colours of the palettes look like. There's one called "Dark2", let's have a look at that.
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), colour = Group)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  scale_colour_brewer(palette = "Dark2")
+```
+
+We can adjust the text on the x axis (the group labels) by turning them 90 degrees so we can read the labels better. To do this we modify the ggplot theme. Themes are the non-data parts of the plot.
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), colour = Group)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  labs(x = "Cell type and stage", y = "Count", title = "Mammary gland RNA-seq data") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+We can remove the grey background and grid lines.
+
+There are also a lot of built-in themes. Let\'s have a look at a couple of the more widely used themes. The default ggplot theme is theme_grey().
+
+Here let's try theme_bw()
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), colour = Group)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  labs(x = "Cell type and stage", y = "Count", title = "Mammary gland RNA-seq data") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+How about theme_minimal
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), colour = Group)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  labs(x = "Cell type and stage", y = "Count", title = "Mammary gland RNA-seq data") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+There are many themes available, you can see some in the [R graph gallery](https://www.r-graph-gallery.com/192-ggplot-themes/).
+
+We can also modify parts of the theme individually. We can remove the grey background and grid lines with the code below.
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group, y = log2(Count + 1), colour = Group)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  labs(x = "Cell type and stage", y = "Count", title = "Mammary gland RNA-seq data") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+```
+
+To see the many many options for theme, type ?theme in the console or a code chunk.
+
+## **Order of categories**
+
+The groups have been plotted in alphabetical order on the x axis and in the legend (that is the default order), however, we may want to change the order. We may prefer to plot the groups in order of stage, for example, basal virgin, basal pregnant, basal lactate, luminal virgin, luminal pregnant, luminal lactate.
+
+First let\'s make an object with the group order that we want.
+
+```{r}
+group_order <- c("bvirg", "bpreg", "blact", "lvirg", "lpreg", "llact")
+```
+
+Next we need to make a column with the groups into an R data type called a **factor**. Factors in R are a special data type used to specify categories, you can read more about them in the [R for Data Science book](https://r4ds.had.co.nz/vectors.html#augmented-vectors). The names of the categories are called the factor **levels**.
+
+We\'ll add another column called \"Group_f\" where we\'ll make the Group column into a factor and specify what order we want the levels of the factor.
+
+```{r}
+mygenes_counts <- mutate(mygenes_counts, Group_f = factor(Group, levels = group_order))
+```
+
+Take a look at the data. As the table is quite wide we can use `select()` to select just the columns we want to view.
+
+```{r}
+select(mygenes_counts, gene_id, Group, Group_f)
+```
+
+Notice that the Group column has \<chr\> under the heading, that indicates is a character data type, while the Group_f column has \<fct\> under the heading, indicating it is a factor data type. The str() command that we saw previously is useful to check the data types in objects.
+
+```         
+str(mygenes_counts)
+```
+
+`str()` shows us Group_f column is a Factor with 6 levels (categories).
+
+We can check the factor levels of a column as below.
+
+```{r}
+levels(mygenes_counts$Group_f)
+```
+
+The levels are in the order that we want, so we can now change our plot to use the \"Group_f\" column instead of Group column (change x = and color =).
+
+```{r}
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group_f, y = log2(Count + 1), colour = Group_f)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  labs(x = "Cell type and stage", y = "Count", title = "Mammary gland RNA-seq data") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+```
+
+# **Saving plots**
+
+We can save plots interactively by clicking Export in the Plots window and saving as e.g. \"myplot.pdf\". Or we can output plots to pdf using pdf() followed by dev.off(). We put our plot code after the call to pdf() and before closing the plot device with dev.off().
+
+Let\'s save our last plot.
+
+```{r}
+pdf("myplot.pdf")
+ggplot(data = mygenes_counts, 
+       mapping = aes(x = Group_f, y = log2(Count + 1), colour = Group_f)) +
+  geom_jitter() +
+  facet_wrap(~ gene_symbol) +
+  labs(x = "Cell type and stage", y = "Count", title = "Mammary gland RNA-seq data") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+dev.off()
+```
+
+#### **Exercise**
+
+1.  Download the raw counts for this dataset from GREIN
+
+    Make a boxplot. Do the samples look any different to the normalised counts?
+
+    Make subplots for the same set of 8 genes. Do they look any different to the normalised counts?
+
+```{=html}
+<!-- -->
+```
+2.  Download the normalised counts for the GSE63310 dataset from GREIN. Make boxplots colouring the samples using different columns in the metadata file.
+
+# **Session Info**
+
+The last thing we\'ll do run the sessionInfo() function. This function prints out details about your working environment such as the version of R you\'re running, loaded packages, and package versions. Printing out sessionInfo() at the end of your analysis is good practice as it helps with reproducibility in the future.
+
+```{r}
+sessionInfo()
+```
+
+# **Key Points**
+
+-   Tabular data can be loaded into R with the tidyverse functions read_csv() and read_tsv()
+
+-   Tidyverse functions such as pivot_longer(), mutate(), filter(), select(), full_join() can be used to manipulate data
+
+-   A ggplot has 3 components: data (dataset), mapping (columns to plot) and geom (type of plot). Different types of plots include geom_point(), geom_jitter(), geom_line(), geom_boxplot(), geom_violin().
+
+-   facet_wrap() can be used to make subplots of the data
+
+-   The aesthetics of a ggplot can be modified, such as colouring by different columns in the dataset, adding labels or changing the background
+
+# **Further Reading**
+
+[A short intro to R and tidyverse](https://pmacdasci.github.io/r-intro-tidyverse/)\
+[Top 50 Ggplot Visualisations](http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html)\
+[R for Data Science](https://r4ds.hadley.nz/)
