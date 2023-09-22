@@ -59,3 +59,176 @@ Uncomment and run the commands below if the above doesn't work.
 #sample_info <- read_csv("data/GSE60450_filtered_metadata.csv")
 
 ```
+
+We can and should have a look at the data files we imported to make sure they make sense. We can do this in several ways. Use ctrl-enter to run each of the following lines of code
+
+```{r}
+#just type the name
+sample_info
+
+#use the head function
+head(sample_info)
+
+#look at the last few lines with tail
+tail(sample_info)
+
+#use the structure function
+str(sample_info)
+
+#use dim to get the dimensions of the data (12 rows 4 columns)
+dim(sample_info)
+```
+
+Or we can see the whole file with `View()`. Nore - I have set this code cunk to eval=false and include = false. This is so that when we render the document it doesn't create an error. The View function interferes with rendering
+
+```{r eval=FALSE, include=FALSE}
+View(sampleinfo)
+```
+
+We can see all column names with the colnames function
+
+```{r}
+colnames(sample_info)
+```
+
+We can display a specific column using the dollar sign format of base R
+
+```{r}
+sample_info$characteristics
+```
+
+or by using the selct function of the tidyverse
+
+```{r}
+sample_info %>% select(characteristics)
+```
+
+We can filter for specific rows using base R
+
+```{r}
+sample_info$characteristics[1:3]
+
+```
+
+or by using the tidyverse
+
+```{r}
+sample_info %>% slice(1:3) %>% select(characteristics)
+```
+
+When we loaded in the data from the csv file, the first column had a missing column name and by default, read_csv function assigned a name of "\...1" to it. Let's change this column to something more descriptive now. We can do this by combining a few things we've just learned.
+
+First, we use the `colnames()` function to obtain the column names of sampleinfo. Then we use square brackets to subset the first value of the column names (`[1]`). Last, we use the assignment operator (`<-`) to set the new value of the first column name to "sample_id".
+
+```{r}
+colnames(sample_info)[1] <- "sample_name"
+```
+
+in tidyverse we would do this as follows
+
+first let's get the official current name of column 1
+
+```{r}
+colnames(sample_info[1])
+```
+
+let's rename this to sample_id
+
+```{r}
+sample_info <- sample_info %>% rename("sample_id" = "sample_name")
+```
+
+Let's also rename the first column of the counts data - the datframe containning the actial RNA seq data ratherthan the sample information.
+
+Let's look at the first few rows of the counts data'
+
+```{r}
+head(counts)
+```
+
+The first column is again labeled "...1" Let's rename this to gene_id. We'll use the base R way doesn't require us to type in both the new name and the old name.
+
+```{r}
+colnames(counts)[1] <- "gene_id"
+
+```
+
+**Multiple methods**\
+There are multiple ways to rename columns. We've covered two ways here. When programming, you'll often find many ways to do the same thing.
+
+# **Reformatting the data**
+
+## **Converting from wide to long format**
+
+We will first convert the data from wide format into long format to make it easier to work with. We want just one column containing all the expression values instead of multiple columns with counts for each sample.
+
+Currently the columns for the counts data are:
+
+gene_id
+
+gene_symbol
+
+then several different columns, one for eachsample. The data in each of these sample columns are the RNA seq counts. For data to be "tidy" and to work with the tidyverse it needs to be in a specific format. One aspect of that format is each column needs to be a variable and each row needs to be an observation. So we need a column that just contains the count data for each sample. The different samples can be represented in rows of a new column called sample.
+
+By doing this we will be converting the data from wide format (lots of columns) to a long format (fewer columns, lots of rows)
+
+In the tidyverse the gather function converts wide data to long data.
+
+spread converts long data to wide data.
+
+We'll use gather here.
+
+Here are the general parameters for using gather
+
+`gather(data, key, value, ...)`
+
+-   `data`: The dataset to be modified (in our case, counts)
+-   `key`: the name of the new "naming" variable (`sample`)
+-   `value`: the name of the new "result" variable (`count`)
+-   ... : the name of the columns to use as data for the new columns.
+
+let's also stor this new table in a new variable called seqdata
+
+```{r}
+seqdata <- counts %>% gather(Sample, Count, contains ("GSM") )
+```
+
+```{r}
+seqdata
+```
+
+Now we want to combine the seqdata table with the sample_info table so that the meta data from sample_info is associated with each sample. We use a function called join to do this.
+
+flights2 \|\> [left_join](https://dplyr.tidyverse.org/reference/mutate-joins.html)(airports, [join_by](https://dplyr.tidyverse.org/reference/join_by.html)(dest == faa))
+
+```{r}
+allinfo <- full_join(seqdata, sample_info, join_by(Sample == sample_id))
+```
+
+Let's see if that worked
+
+```{r}
+allinfo
+```
+
+```{r}
+allinfo %>% arrange(gene_id)
+```
+
+# **Plotting with `ggplot2`**
+
+**`ggplot2`** is a plotting package that makes it simple to create complex plots. One really great benefit of ggplot2 versus the older base R plotting is that we only need to make minimal changes if the underlying data change or if we decide to change our plot type, for example, from a box plot to a violin plot. This helps in creating publication quality plots with minimal amounts of adjustments and tweaking.
+
+**`ggplot2`** likes data in the \'long\' format, i.e., a column for every variable, and a row for every observation, similar to what we created with `gather()`. Well-structured data will save you lots of time when making figures with **`ggplot2`**.
+
+As we shall see, ggplot graphics are built step by step by adding new elements using the `+`. Adding layers in this fashion allows for extensive flexibility and customization of plots.
+
+To build a ggplot, we use the following basic template that can be used for different types of plots. Three things are required for a ggplot:
+
+1.  The data
+
+2.  The columns in the data we want to map to visual properties (called aesthetics or aes in ggplot2) e.g. the columns for x values, y values and colors
+
+3.  The type of plot (the geom\_)
+
+There are different geoms we can use to create different types of plot e.g. `geom_line()` `geom_point()`, `geom_boxplot()`. To see the geoms available take a look at the ggplot2 help or the handy [ggplot2 cheatsheet](https://github.com/rstudio/cheatsheets/raw/master/data-visualization-2.1.pdf). Or if you type \"geom\" in RStudio, RStudio will show you the different types of geoms you can use.
